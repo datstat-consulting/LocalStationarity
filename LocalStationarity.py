@@ -23,7 +23,7 @@ class LocallyStationaryProcess:
             windowed_data = self.data[t : t + window_size] * window_function
             
             if method == 'periodogram':
-                periodogram = torch.abs(torch.fft.fft(windowed_data))**2
+                periodogram = torch.abs(torch.fft.fft(windowed_data))**2 / window_size
                 spectral_density[t, :] = periodogram[:window_size // 2 + 1]
                 
             # Add other estimation methods here, e.g., multitaper, wavelet-based methods, etc.
