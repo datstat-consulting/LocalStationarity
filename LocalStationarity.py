@@ -5,10 +5,9 @@ from statsmodels.tsa.stattools import adfuller
 from EconmetPerceptron import WorkhorseFunctions
 
 class LocallyStationaryProcess:
-
     def __init__(self, time_series_data):
         if not isinstance(time_series_data, torch.Tensor):
-            self.data = torch.tensor(time_series_data)
+            self.data = torch.tensor(time_series_data, dtype=torch.float32)
         else:
             self.data = time_series_data
         self.n = len(time_series_data)
@@ -17,15 +16,15 @@ class LocallyStationaryProcess:
 
     def estimate_evolutionary_spectral_density(self, window_size, window_type='hanning', method='periodogram'):
         n_windows = self.n - window_size + 1
-        window_function = torch.tensor(signal.windows.get_window(window_type, window_size))
-        spectral_density = torch.empty((n_windows, window_size))
+        window_function = torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
+        spectral_density = torch.empty((n_windows, window_size // 2 + 1))
 
         for t in range(n_windows):
             windowed_data = self.data[t : t + window_size] * window_function
             
             if method == 'periodogram':
                 periodogram = torch.abs(torch.fft.fft(windowed_data))**2
-                spectral_density[t, :] = periodogram
+                spectral_density[t, :] = periodogram[:window_size // 2 + 1]
                 
             # Add other estimation methods here, e.g., multitaper, wavelet-based methods, etc.
 
@@ -47,12 +46,14 @@ class LocallyStationaryProcess:
 
     def hypothesis_testing(self, window_size):
         n_windows = self.n - window_size + 1
-        p_values = torch.empty(n_windows)
+        n_variables = self.data.shape[1]
+        p_values = torch.empty((n_windows, n_variables))
 
         for t in range(n_windows):
-            windowed_data = self.data[t : t + window_size].numpy()
-            result = adfuller(windowed_data)
-            p_values[t] = result[1]
+            for var in range(n_variables):
+                windowed_data = self.data[t : t + window_size, var].numpy()
+                result = adfuller(windowed_data)
+                p_values[t, var] = result[1]
 
         return p_values
 
@@ -79,6 +80,7 @@ class LocallyStationaryProcess:
 
     def calculate_log_likelihood(self, window_size, n_lags, model):
         n_windows = self.n - window_size + 1
+        n_variables = self.data.shape[1]
         log_likelihood = 0
 
         for t in range(n_windows):
@@ -86,6 +88,7 @@ class LocallyStationaryProcess:
             X, y = WorkhorseFunctions.create_input_output_pairs(windowed_data, n_lags)
             y_pred = X.mm(model[t])
             residuals = y - y_pred
-            log_likelihood += -0.5 * torch.sum(residuals**2)
+            sigma_sq = torch.mean(residuals ** 2, axis=0)
+            log_likelihood += -0.5 * window_size * torch.sum(torch.log(sigma_sq))
 
         return log_likelihood
