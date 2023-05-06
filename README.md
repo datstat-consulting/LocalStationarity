@@ -1,7 +1,24 @@
 # LocalStationarity
-Description WIP
+
+This package provides a set of tools for the analysis of locally stationary processes. It includes functionalities for estimating the evolutionary spectral density, performing hypothesis testing for stationarity, and selecting the best model for the process based on information criteria. The package aims to help researchers and practitioners in various fields, such as finance, engineering, and environmental science, to analyze time series data that exhibit local stationarity.
+
+## Main Features
+
+- Estimate the evolutionary spectral density of a locally stationary process.
+- Perform hypothesis testing to determine the stationarity of a time series at each time point.
+- Apply model selection techniques, such as the Akaike Information Criterion (AIC), to choose the best model for the process.
+- Generate predictions for both training and testing data using the selected model.
+
+## Installation
+
+You can install the package using pip:
+```
+pip install git+https://github.com/datstat-consulting/LocalStationarity
+```
 
 # Examples
+## Bivariate time series data
+
 Import needed libraries, and generate synthetic data.
 ```
 import torch
