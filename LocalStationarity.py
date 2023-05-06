@@ -14,18 +14,19 @@ class LocallyStationaryProcess:
         self.time_varying_parameters = None
         self.model = None
 
-    def estimate_evolutionary_spectral_density(self, window_size, window_type='hanning', method='periodogram'):
+    def estimate_evolutionary_spectral_density(self, window_size, window_type='hann', method='periodogram'):
         n_windows = self.n - window_size + 1
+        n_variables = self.data.shape[1]
         window_function = torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
-        spectral_density = torch.empty((n_windows, window_size // 2 + 1))
+        spectral_density = torch.empty((n_windows, window_size // 2 + 1, n_variables))
 
         for t in range(n_windows):
-            windowed_data = self.data[t : t + window_size] * window_function
-            
+            windowed_data = self.data[t : t + window_size] * window_function.unsqueeze(-1)
+        
             if method == 'periodogram':
-                periodogram = torch.abs(torch.fft.fft(windowed_data))**2 / window_size
-                spectral_density[t, :] = periodogram[:window_size // 2 + 1]
-                
+                periodogram = torch.abs(torch.fft.fft(windowed_data, dim=0))**2 / window_size
+                spectral_density[t, :, :] = periodogram[:window_size // 2 + 1]
+
             # Add other estimation methods here, e.g., multitaper, wavelet-based methods, etc.
 
         self.time_varying_parameters = spectral_density
