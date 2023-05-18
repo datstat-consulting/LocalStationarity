@@ -14,20 +14,39 @@ class LocallyStationaryProcess:
         self.time_varying_parameters = None
         self.model = None
 
-    def estimate_evolutionary_spectral_density(self, window_size, window_type='hann', method='periodogram'):
+    def estimate_evolutionary_spectral_density(self, window_size, window_type='hann', method='periodogram', overlap=0.5):
         n_windows = self.n - window_size + 1
         n_variables = self.data.shape[1]
-        window_function = torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
         spectral_density = torch.empty((n_windows, window_size // 2 + 1, n_variables))
 
         for t in range(n_windows):
-            windowed_data = self.data[t : t + window_size] * window_function.unsqueeze(-1)
+            windowed_data = self.data[t : t + window_size]
         
             if method == 'periodogram':
+                window_function = torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
+                windowed_data = windowed_data * window_function.unsqueeze(-1)
                 periodogram = torch.abs(torch.fft.fft(windowed_data, dim=0))**2 / window_size
                 spectral_density[t, :, :] = periodogram[:window_size // 2 + 1]
+            elif method == 'welch':
+                overlap_portion = int(window_size * overlap)
+                n_windows_welch = int(torch.ceil(torch.tensor((self.n) - window_size) / overlap_portion)) + 1
+                spectral_density_welch = torch.empty((n_windows_welch, window_size // 2 + 1, n_variables))
+    
+                for i in range(n_windows_welch):
+                    start = i * overlap_portion
+                    end = start + window_size
+        
+                    if end > self.n:
+                        continue
 
-            # Add other estimation methods here, e.g., multitaper, wavelet-based methods, etc.
+                    windowed_data_welch = self.data[start:end]
+                    window_function = torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
+                    windowed_data_welch = windowed_data_welch * window_function.unsqueeze(-1)
+        
+                    periodogram = torch.abs(torch.fft.fft(windowed_data_welch, dim=0))**2 / window_size
+                    spectral_density_welch[i, :, :] = periodogram[:window_size // 2 + 1]
+
+                spectral_density[t, :, :] = torch.mean(spectral_density_welch[:i+1, :, :], dim=0)
 
         self.time_varying_parameters = spectral_density
         return spectral_density
@@ -72,6 +91,12 @@ class LocallyStationaryProcess:
                 aic = 2 * n_lags * n_variables**2 - 2 * log_likelihood
                 if aic < best_criterion_value:
                     best_criterion_value = aic
+                    best_model = model
+
+            elif criterion == 'bic':
+                bic = torch.log(torch.tensor(window_size, dtype=torch.float64)) * n_lags * n_variables**2 - 2 * log_likelihood
+                if bic < best_criterion_value:
+                    best_criterion_value = bic
                     best_model = model
 
             # Add other model selection criteria here, e.g., BIC, etc.
