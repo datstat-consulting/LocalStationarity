@@ -15,6 +15,10 @@ You can install the package using pip:
 ```
 pip install git+https://github.com/datstat-consulting/LocalStationarity
 ```
+This package relies on some classes from `EconmetPerceptron`:
+```
+pip install git+https://github.com/datstat-consulting/EconmetPerceptron
+```
 
 # Examples
 ## Bivariate time series data
