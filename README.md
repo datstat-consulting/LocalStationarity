@@ -51,14 +51,16 @@ lsp_train = LocallyStationaryProcess(train_data)
 
 # Estimate the evolutionary spectral density
 window_size = 50
-spectral_density = lsp_train.estimate_evolutionary_spectral_density(window_size)
+spectral_density = lsp_train.estimate_evolutionary_spectral_density(window_size, method='periodogram') #other option: 'welch'
 
 # Perform hypothesis testing
 hypothesis_testing_results = lsp_train.hypothesis_testing(window_size)
 
 # Perform model selection with the Akaike Information Criterion (AIC)
 max_n_lags = 10
-best_model = lsp_train.model_selection(window_size, max_n_lags, criterion='aic')
+best_model = lsp_train.model_selection(window_size, 
+                                        max_n_lags, 
+                                        criterion='aic') # 'bic' is another choice
 n_lags = best_model.shape[1] // train_data.shape[1]
 
 # Generate predictions from the best model
