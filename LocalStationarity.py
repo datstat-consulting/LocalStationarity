@@ -3,6 +3,7 @@ import pandas as pd
 from scipy import signal
 from statsmodels.tsa.stattools import adfuller
 from EconmetPerceptron import WorkhorseFunctions
+import logging
 
 class LocallyStationaryProcess:
     def __init__(self, time_series_data):
@@ -13,6 +14,13 @@ class LocallyStationaryProcess:
         self.n = len(time_series_data)
         self.time_varying_parameters = None
         self.model = None
+        logging.basicConfig(level=logging.INFO)
+
+    def _window_function(self, window_size, window_type):
+        return torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
+
+    def _calculate_periodogram(self, windowed_data, window_size):
+        return torch.abs(torch.fft.fft(windowed_data, dim=0))**2 / window_size
 
     def estimate_evolutionary_spectral_density(self, window_size, window_type='hann', method='periodogram', overlap=0.5):
         n_windows = self.n - window_size + 1
@@ -20,12 +28,13 @@ class LocallyStationaryProcess:
         spectral_density = torch.empty((n_windows, window_size // 2 + 1, n_variables))
 
         for t in range(n_windows):
+            logging.info(f"Estimating spectral density for window {t+1} of {n_windows}")
             windowed_data = self.data[t : t + window_size]
         
             if method == 'periodogram':
-                window_function = torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
+                window_function = self._window_function(window_size, window_type)
                 windowed_data = windowed_data * window_function.unsqueeze(-1)
-                periodogram = torch.abs(torch.fft.fft(windowed_data, dim=0))**2 / window_size
+                periodogram = self._calculate_periodogram(windowed_data, window_size)
                 spectral_density[t, :, :] = periodogram[:window_size // 2 + 1]
             elif method == 'welch':
                 overlap_portion = int(window_size * overlap)
@@ -40,10 +49,10 @@ class LocallyStationaryProcess:
                         continue
 
                     windowed_data_welch = self.data[start:end]
-                    window_function = torch.tensor(signal.windows.get_window(window_type, window_size), dtype=torch.float32)
+                    window_function = self._window_function(window_size, window_type)
                     windowed_data_welch = windowed_data_welch * window_function.unsqueeze(-1)
         
-                    periodogram = torch.abs(torch.fft.fft(windowed_data_welch, dim=0))**2 / window_size
+                    periodogram = self._calculate_periodogram(windowed_data_welch, window_size)
                     spectral_density_welch[i, :, :] = periodogram[:window_size // 2 + 1]
 
                 spectral_density[t, :, :] = torch.mean(spectral_density_welch[:i+1, :, :], dim=0)
