@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "LocalStationarity"
+version = "0.2.0"
+description = "Local spectral analysis, forecasting and regime segmentation for time series"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = ["numpy", "scipy", "statsmodels"]
+
+[tool.setuptools]
+py-modules = ["LocalStationarity"]
